@@ -1,7 +1,27 @@
+
+## Version 0.8.12
+
+**Date: 12/12/17**
+**Changes:**
+
+- Removed AXFR from std enumeration type unless -a is specified.
+- Fixed processing of TXT records.
+
+
+## Version 0.8.11
+
+**Date: 10/23/17**
+**Changes:**
+
+- Bug fix for python 3.6.x and the Google enumeration type.
+- Merged PR for Bing support.
+- Fixed issue when doing zone walks on servers without a SOA record.
+
 ## Version 0.8.9
 
 ### Date: 1/14/14
 ### Changes:
+- Bug fixes.
 
 ## Version 0.8.8
 - Minor bug fixes in parsing tool and dnsrecon.
