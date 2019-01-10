@@ -18,7 +18,7 @@
 #    along with this program; if not, write to the Free Software
 #    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-__version__ = '0.8.13'
+__version__ = '0.8.14'
 __author__ = 'Carlos Perez, Carlos_Perez@darkoperator.com'
 
 __doc__ = """
@@ -359,7 +359,7 @@ def brute_srv(res, domain, verbose=False):
         '_ldap._tcp.gc._msdcs.', '_kerberos._tcp.dc._msdcs.', '_kpasswd._tcp.', '_kpasswd._udp.',
         '_imap._tcp.', '_imaps._tcp.', '_submission._tcp.', '_pop3._tcp.', '_pop3s._tcp.',
         '_caldav._tcp.', '_caldavs._tcp.', '_carddav._tcp.', '_carddavs._tcp.',
-        '_x-puppet._tcp.', '_x-puppet-ca._tcp.']
+        '_x-puppet._tcp.', '_x-puppet-ca._tcp.', '_autodiscover._tcp.']
 
     try:
         for srvtype in srvrcd:
@@ -940,7 +940,7 @@ def general_enum(res, domain, do_axfr, do_google, do_bing, do_spf, do_whois, do_
         dns_sec_check(domain, res)
 
         # Enumerate SOA Record
-
+        found_soa_records = res.get_soa()
         try:
             found_soa_records = res.get_soa()
             for found_soa_record in found_soa_records:
@@ -970,6 +970,9 @@ def general_enum(res, domain, do_axfr, do_google, do_bing, do_spf, do_whois, do_
 
         except dns.resolver.NoAnswer:
             print_error("Could not Resolve NS Records for {0}".format(domain))
+        except dns.resolver.NoNameservers:
+            print_error("All nameservers failed to answer the NS query for {0}".format(domain))
+            sys.exit(1)
 
         # Enumerate MX Records
         try:
@@ -1694,4 +1697,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
