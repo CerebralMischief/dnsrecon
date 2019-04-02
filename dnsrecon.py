@@ -3,7 +3,7 @@
 
 #    DNSRecon
 #
-#    Copyright (C) 2015  Carlos Perez
+#    Copyright (C) 2019  Carlos Perez
 #
 #    This program is free software; you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 #    along with this program; if not, write to the Free Software
 #    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-__version__ = '0.8.14'
+__version__ = '0.8.2'
 __author__ = 'Carlos Perez, Carlos_Perez@darkoperator.com'
 
 __doc__ = """
@@ -986,6 +986,8 @@ def general_enum(res, domain, do_axfr, do_google, do_bing, do_spf, do_whois, do_
 
         except dns.resolver.NoAnswer:
             print_error("Could not Resolve MX Records for {0}".format(domain))
+        except dns.resolver.NoNameservers:
+            print_error("All nameservers failed to answer the MX query for {0}".format(domain))
 
         # Enumerate A Record for the targeted Domain
         for a_rcrd in res.get_ip(domain):
@@ -1058,7 +1060,7 @@ def general_enum(res, domain, do_axfr, do_google, do_bing, do_spf, do_whois, do_
         # Do Bing Search enumeration if selected
         if do_bing:
             print_status("Performing Bing Search Enumeration")
-            bing_rcd = se_result_process(res, scrape_google(domain))
+            bing_rcd = se_result_process(res, scrape_bing(domain))
             if bing_rcd:
                 for r in bing_rcd:
                     if "address" in bing_rcd:
@@ -1303,6 +1305,9 @@ def ds_zone_walk(res, domain):
         print_error("sure you can reach the target DNS Servers directly and requests")
         print_error("are not being filtered. Increase the timeout to a higher number")
         print_error("with --lifetime <time> option.")
+
+    except (socket.error):
+        print_error("SoA nameserver {} failed to answer the DNSSEC query for {}".format(nameserver, domain))
 
     # Give a summary of the walk
     if len(records) > 0:
