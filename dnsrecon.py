@@ -18,7 +18,7 @@
 #    along with this program; if not, write to the Free Software
 #    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-__version__ = '0.8.2'
+__version__ = '0.9.0'
 __author__ = 'Carlos Perez, Carlos_Perez@darkoperator.com'
 
 __doc__ = """
@@ -74,6 +74,10 @@ from lib.msf_print import *
 # Global Variables for Brute force Threads
 brtdata = []
 
+CONFIG = {
+    "disable_check_recursion": False,
+    "disable_check_bindversion": False
+}
 
 # Function Definitions
 # -------------------------------------------------------------------------------
@@ -269,6 +273,45 @@ def check_wildcard(res, domain_trg):
 
     return wildcard
 
+def check_nxdomain_hijack(nameserver):
+    """
+    Function for checking if a name server performs NXDOMAIN hijacking
+    """
+
+    test_name = ''.join(Random().sample(string.hexdigits + string.digits,
+                                        20)) + ".com"
+
+    res = dns.resolver.Resolver(configure=False)
+    res.nameservers = [nameserver]
+    res.timeout = 5.0
+
+    address = []
+
+    for record_type in ('A', 'AAAA'):
+        try:
+            answers = res.query(test_name, record_type, tcp=True)
+        except (dns.resolver.NXDOMAIN, dns.exception.Timeout, dns.resolver.NoAnswer, socket.error, dns.query.BadResponse):
+            continue
+
+        if answers:
+            for ardata in answers.response.answer:
+                for rdata in ardata:
+                    if rdata.rdtype == 5:
+                        if rdata.target.to_text().endswith('.'):
+                            address.append(rdata.target.to_text()[:-1])
+                        else:
+                            address.append(rdata.target.to_text())
+                    else:
+                        address.append(rdata.address)
+
+    if len(address) > 0:
+        print_error("Nameserver {} performs NXDOMAIN hijacking".format(nameserver))
+        print_error("It resolves nonexistent domains to {}".format(", ".join(address)))
+        print_error("This server has been removed from the name server list!")
+        return True
+
+    return False
+
 
 def brute_tlds(res, domain, verbose=False):
     """
@@ -287,10 +330,10 @@ def brute_tlds(res, domain, verbose=False):
     gtld = ['co', 'com',  'info', 'net', 'org']
 
     # Generic restricted TLD
-    grtld = ['biz', 'name', 'pro']
+    grtld = ['biz', 'name', 'online', 'pro', 'shop', 'site', 'top', 'xyz' ]
 
     # Sponsored TLD
-    stld = ['aereo', 'asia', 'cat', 'coop', 'edu', 'gov', 'int', 'jobs', 'mil', 'mobi', 'museum', 'post', 'tel', 'travel', 'xxx']
+    stld = ['aero', 'app', 'asia', 'cat', 'coop', 'dev', 'edu', 'gov', 'int', 'jobs', 'mil', 'mobi', 'museum', 'post', 'tel', 'travel', 'xxx']
 
     # Country Code TLD
     cctld = ['ac', 'ad', 'ae', 'af', 'ag', 'ai', 'al', 'am', 'an', 'ao', 'aq', 'ar', 'as', 'at', 'au', 'aw', 'ax', 'az', 'ba', 'bb', 'bd', 'be', 'bf', 'bg', 'bh', 'bi', 'bj', 'bl', 'bm', 'bn', 'bo', 'bq', 'br', 'bs', 'bt', 'bv', 'bw', 'by', 'bz', 'ca', 'cc', 'cd', 'cf', 'cg', 'ch', 'ci', 'ck', 'cl', 'cm', 'cn', 'co', 'cr', 'cu', 'cv', 'cw', 'cx', 'cy', 'cz', 'de', 'dj', 'dk', 'dm', 'do', 'dz', 'ec', 'ee', 'eg', 'eh', 'er', 'es', 'et', 'eu', 'fi', 'fj', 'fk', 'fm', 'fo', 'fr', 'ga', 'gb', 'gd', 'ge', 'gf', 'gg', 'gh', 'gi', 'gl', 'gm', 'gn', 'gp', 'gq', 'gr', 'gs', 'gt', 'gu', 'gw', 'gy', 'hk', 'hm', 'hn', 'hr', 'ht', 'hu', 'id', 'ie', 'il', 'im', 'in', 'io', 'iq', 'ir', 'is', 'it', 'je', 'jm', 'jo', 'jp', 'ke', 'kg', 'kh', 'ki', 'km', 'kn', 'kp', 'kr', 'kw', 'ky', 'kz', 'la', 'lb', 'lc', 'li', 'lk', 'lr', 'ls', 'lt', 'lu', 'lv', 'ly', 'ma', 'mc', 'md', 'me', 'mf', 'mg', 'mh', 'mk', 'ml', 'mm', 'mn', 'mo', 'mp', 'mq', 'mr', 'ms', 'mt', 'mu', 'mv', 'mw', 'mx', 'my', 'mz', 'na', 'nc', 'ne', 'nf', 'ng', 'ni', 'nl', 'no', 'np', 'nr', 'nu', 'nz', 'om', 'pa', 'pe', 'pf', 'pg', 'ph', 'pk', 'pl', 'pm', 'pn', 'pr', 'ps', 'pt', 'pw', 'py', 'qa', 're', 'ro', 'rs', 'ru', 'rw', 'sa', 'sb', 'sc', 'sd', 'se', 'sg', 'sh', 'si', 'sj', 'sk', 'sl', 'sm', 'sn', 'so', 'sr', 'ss', 'st', 'su', 'sv', 'sx', 'sy', 'sz', 'tc', 'td', 'tf', 'tg', 'th', 'tj', 'tk', 'tl', 'tm', 'tn', 'to', 'tp', 'tr', 'tt', 'tv', 'tw', 'tz', 'ua', 'ug', 'uk', 'um', 'us', 'uy', 'uz', 'va', 'vc', 've', 'vg', 'vi', 'vn', 'vu', 'wf', 'ws', 'yt', 'za', 'zm', 'zw']
@@ -590,7 +633,7 @@ def whois_ips(res, ip_list):
     print_status("Performing Whois lookup against records found.")
     list = get_whois_nets_iplist(unique(ip_list))
     if len(list) > 0:
-        print_status("The following IP Ranges where found:")
+        print_status("The following IP Ranges were found:")
         for i in range(len(list)):
             print_status(
                 "\t {0} {1}-{2} {3}".format(str(i) + ")", list[i]["start"], list[i]["end"], list[i]["orgname"]))
@@ -615,7 +658,7 @@ def whois_ips(res, ip_list):
                     "Performing Reverse Lookup of range {0}-{1}".format(net_selected['start'], net_selected['end']))
                 found_records.append(brute_reverse(res, expand_range(net_selected['start'], net_selected['end'])))
     else:
-        print_error("No IP Ranges where found in the Whois query results")
+        print_error("No IP Ranges were found in the Whois query results")
 
     return found_records
 
@@ -873,14 +916,17 @@ def check_bindversion(res, ns_server, timeout):
     Check if the version of Bind can be queried for.
     """
     version = ""
-    request = dns.message.make_query('version.bind', 'txt', 'ch')
-    try:
-        response = res.query(request, ns_server, timeout=timeout, one_rr_per_rrset=True)
-        if (len(response.answer) > 0):
-            print_status("\t Bind Version for {0} {1}".format(ns_server, response.answer[0].items[0].strings[0]))
-            version = response.answer[0].items[0].strings[0]
-    except (dns.resolver.NXDOMAIN, dns.exception.Timeout, dns.resolver.NoAnswer, socket.error, dns.query.BadResponse):
-        return version
+
+    if not CONFIG or not CONFIG.get("disable_check_bindversion", False):
+        request = dns.message.make_query('version.bind', 'txt', 'ch')
+        try:
+            response = res.query(request, ns_server, timeout=timeout, one_rr_per_rrset=True)
+            if (len(response.answer) > 0):
+                print_status("\t Bind Version for {0} {1}".format(ns_server, response.answer[0].items[0].strings[0]))
+                version = response.answer[0].items[0].strings[0]
+        except (dns.resolver.NXDOMAIN, dns.exception.Timeout, dns.resolver.NoAnswer, socket.error, dns.query.BadResponse):
+            pass
+
     return version
 
 
@@ -889,17 +935,20 @@ def check_recursive(res, ns_server, timeout):
     Check if a NS Server is recursive.
     """
     is_recursive = False
-    query = dns.message.make_query('www.google.com.', dns.rdatatype.NS)
-    try:
-        response = res.query(query, ns_server, timeout)
-        recursion_flag_pattern = "\.*RA\.*"
-        flags = dns.flags.to_text(response.flags)
-        result = re.findall(recursion_flag_pattern, flags)
-        if (result):
-            print_error("\t Recursion enabled on NS Server {0}".format(ns_server))
-        is_recursive = True
-    except (socket.error, dns.exception.Timeout):
-        return is_recursive
+
+    if not CONFIG or not CONFIG.get("disable_check_recursion", False):
+        query = dns.message.make_query('www.google.com.', dns.rdatatype.NS)
+        try:
+            response = res.query(query, ns_server, timeout)
+            recursion_flag_pattern = "\.*RA\.*"
+            flags = dns.flags.to_text(response.flags)
+            result = re.findall(recursion_flag_pattern, flags)
+            if (result):
+                print_error("\t Recursion enabled on NS Server {0}".format(ns_server))
+            is_recursive = True
+        except (socket.error, dns.exception.Timeout):
+            pass
+
     return is_recursive
 
 
@@ -940,7 +989,6 @@ def general_enum(res, domain, do_axfr, do_google, do_bing, do_spf, do_whois, do_
         dns_sec_check(domain, res)
 
         # Enumerate SOA Record
-        found_soa_records = res.get_soa()
         try:
             found_soa_records = res.get_soa()
             for found_soa_record in found_soa_records:
@@ -1037,7 +1085,7 @@ def general_enum(res, domain, do_axfr, do_google, do_bing, do_spf, do_whois, do_
                 print_status("Performing Reverse Look-up of SPF Ranges")
                 returned_records.extend(brute_reverse(res, unique(found_spf_ranges)))
             else:
-                print_status("No IP Ranges where found in SPF and TXT Records")
+                print_status("No IP Ranges were found in SPF and TXT Records")
 
         # Enumerate SRV Records for the targeted Domain
         print_status("Enumerating SRV Records")
@@ -1238,7 +1286,7 @@ def ds_zone_walk(res, domain):
         res = DnsHelper(domain, soa_rcd, 3)
         nameserver = soa_rcd
     except:
-        print_error("This zone appears to be miss configured, no SOA record found.")
+        print_error("This zone appears to be misconfigured, no SOA record found.")
 
     timeout = res._res.timeout
 
@@ -1252,10 +1300,10 @@ def ds_zone_walk(res, domain):
         lambda h, hc, dc: "0.{0}".format(h),
 
         # Append a hyphen to the host portion
-        lambda h, hc, dc: "{0}-.{1}".format(hc, dc),
+        lambda h, hc, dc: "{0}-.{1}".format(hc, dc) if hc else None,
 
         # Double the last character of the host portion
-        lambda h, hc, dc: "{0}{1}.{2}".format(hc, hc[-1], dc)
+        lambda h, hc, dc: "{0}{1}.{2}".format(hc, hc[-1], dc) if hc else None
     ]
 
     pending = set([domain])
@@ -1271,12 +1319,26 @@ def ds_zone_walk(res, domain):
             records.extend(lookup_next(hostname, res))
 
             # Arrange the arguments for the transformations
-            fields = re.search("(^[^.]*).(\S*)", hostname)
-            params = [hostname, fields.group(1), fields.group(2)]
+            fields = re.search("^(^[^.]*)\.(\S+\.\S*)$", hostname)
+
+            domain_portion = hostname
+            if fields and fields.group(2):
+                domain_portion = fields.group(2)
+
+            host_portion = ""
+            if fields and fields.group(1):
+                host_portion = fields.group(1)
+
+            params = [hostname, host_portion, domain_portion]
+
+            walk_filter = "." + domain_portion
+            walk_filter_offset = len(walk_filter) + 1
 
             for transformation in transformations:
                 # Apply the transformation
                 target = transformation(*params)
+                if not target:
+                    continue
 
                 # Perform a DNS query for the target and process the response
                 if not nameserver:
@@ -1292,7 +1354,10 @@ def ds_zone_walk(res, domain):
                     #   2) The subsequent existing hostname that is signed
                     # Add the latter to our list of pending hostnames
                     for r in a:
-                        pending.add(r.next.to_text()[:-1])
+                        # Avoid walking outside of the target domain. This
+                        # happens with certain misconfigured domains.
+                        if r.next.to_text()[-walk_filter_offset:-1] == walk_filter:
+                            pending.add(r.next.to_text()[:-1])
 
             # Ensure nothing pending has already been queried
             pending -= finished
@@ -1305,6 +1370,9 @@ def ds_zone_walk(res, domain):
         print_error("sure you can reach the target DNS Servers directly and requests")
         print_error("are not being filtered. Increase the timeout to a higher number")
         print_error("with --lifetime <time> option.")
+
+    except (EOFError):
+        print_error("SoA nameserver {} failed to answer the DNSSEC query for {}".format(nameserver, target))
 
     except (socket.error):
         print_error("SoA nameserver {} failed to answer the DNSSEC query for {}".format(nameserver, domain))
@@ -1326,6 +1394,7 @@ def usage():
     print("   -d, --domain      <domain>   Target domain.")
     print("   -r, --range       <range>    IP range for reverse lookup brute force in formats (first-last) or in (range/bitmask).")
     print("   -n, --name_server <name>     Domain server to use. If none is given, the SOA of the target will be used.")
+    print("                                Multiple servers can be specified using a comma separated list.")
     print("   -D, --dictionary  <file>     Dictionary file of subdomain and hostnames to use for brute force.")
     print("   -f                           Filter out of brute force domain lookup, records that resolve to the wildcard defined")
     print("                                IP address when saving records.")
@@ -1357,6 +1426,8 @@ def usage():
     print("   --db              <file>     SQLite 3 file to save found records.")
     print("   --xml             <file>     XML file to save found records.")
     print("   --iw                         Continue brute forcing a domain even if a wildcard records are discovered.")
+    print("   --disable_check_recursion    Disables check for recursion on name servers.")
+    print("   --disable_check_bindversion  Disables check for BIND version on name servers.")
     print("   -c, --csv         <file>     Comma separated value file.")
     print("   -j, --json        <file>     JSON file.")
     print("   -v                           Show attempts in the brute force modes.")
@@ -1406,7 +1477,7 @@ def main():
     parser = argparse.ArgumentParser()
     try:
         parser.add_argument("-d", "--domain", type=str, dest="domain", help="Target domain.")
-        parser.add_argument("-n", "--name_server",type=str, dest="ns_server", help="Domain server to use. If none is given,    the SOA of the target will be used.")
+        parser.add_argument("-n", "--name_server",type=str, dest="ns_server", help="Domain server to use. If none is given,    the SOA of the target will be used. Multiple servers can be specified using a comma separated list.")
         parser.add_argument("-r", "--range",type=str, dest="range", help="IP range for reverse lookup brute force in formats   (first-last) or in (range/bitmask).")
         parser.add_argument("-D", "--dictionary",type=str, dest="dictionary", help="Dictionary file of subdomain and hostnames to use for brute force. Filter out of brute force domain lookup, records that resolve to the wildcard defined IP address when saving records.")
         parser.add_argument("-f", help="Filter out of brute force domain lookup, records that resolve to the wildcard defined IP address when saving records.", action="store_true")
@@ -1426,6 +1497,8 @@ def main():
         parser.add_argument("-c", "--csv", type=str, dest="csv", help="Comma separated value file.")
         parser.add_argument("-j", "--json", type=str, dest="json", help="JSON file.")
         parser.add_argument("--iw", help="Continue brute forcing a domain even if a wildcard records are discovered.", action="store_true")
+        parser.add_argument("--disable_check_recursion", help="Disables check for recursion on name servers", action="store_true")
+        parser.add_argument("--disable_check_bindversion", help="Disables check for BIND version on name servers", action="store_true")
         parser.add_argument("-v", help="Enable verbose", action="store_true")
         arguments = parser.parse_args()
 
@@ -1443,19 +1516,28 @@ def main():
     domain = arguments.domain
 
     if arguments.ns_server:
-        if netaddr.valid_glob(arguments.ns_server):
-            ns_server = arguments.ns_server
-        else:
-            #Resolve in the case if FQDN
-            answer = socket_resolv(arguments.ns_server)
-            # Check we actually got a list
-            if len(answer) > 0:
-                # We will use the first IP found as the NS
-                ns_server = answer[0][2]
+        ns_server = []
+        ns_raw_list = list(set(arguments.ns_server.split(",")))
+        for entry in ns_raw_list:
+            if check_nxdomain_hijack(entry):
+                continue
+            if netaddr.valid_glob(entry):
+                ns_server.append(entry)
             else:
-                # Exit if we cannot resolve it
-                print_error("Could not resolve NS server provided")
-                sys.exit(1)
+                #Resolve in the case if FQDN
+                answer = socket_resolv(entry)
+                # Check we actually got a list
+                if len(answer) > 0:
+                    # We will use the first IP found as the NS
+                    ns_server.append(answer[0][2])
+                else:
+                    # Exit if we cannot resolve it
+                    print_error("Could not resolve NS server provided and server doesn't appear to be an IP: {}".format(entry))
+
+        # User specified name servers but none of them validated
+        if len(ns_server) == 0:
+            print_error("Please specify valid name servers.")
+            sys.exit(1)
 
     output_file = arguments.xml
 
@@ -1488,6 +1570,8 @@ def main():
     json_file = arguments.json
     verbose = arguments.v
     ignore_wildcardrr = arguments.iw
+    CONFIG['disable_check_recursion'] = arguments.disable_check_recursion
+    CONFIG['disable_check_bindversion'] = arguments.disable_check_bindversion
 
     xfr = arguments.a
     goo = arguments.g
